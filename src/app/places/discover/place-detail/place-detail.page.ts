@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   ActionSheetController,
   ModalController,
   NavController
 } from '@ionic/angular';
+import { Subscription } from 'rxjs';
 import { CreateBookingComponent } from 'src/app/booking/create-booking/create-booking.component';
 import { Place } from '../../place.model';
 import { PlacesService } from '../../places.service';
@@ -14,8 +15,10 @@ import { PlacesService } from '../../places.service';
   templateUrl: './place-detail.page.html',
   styleUrls: ['./place-detail.page.scss']
 })
-export class PlaceDetailPage implements OnInit {
+export class PlaceDetailPage implements OnInit, OnDestroy {
   place: Place;
+  private placeSubscription: Subscription;
+
   constructor(
     private router: Router,
     private activatedRoute: ActivatedRoute,
@@ -26,12 +29,14 @@ export class PlaceDetailPage implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.activatedRoute.paramMap.subscribe(param => {
+    this.placeSubscription = this.activatedRoute.paramMap.subscribe(param => {
       if (!param.has('placeId')) {
         this.navCtrl.navigateBack('/places/tabs/discover');
         return;
       }
-      this.place = this.placesService.getPlace(param.get('placeId'));
+      this.placesService.getPlace(param.get('placeId')).subscribe(place => {
+        this.place = place;
+      });
     });
   }
 
@@ -69,11 +74,10 @@ export class PlaceDetailPage implements OnInit {
   }
 
   openBookingModal(mode: 'select' | 'random'): void {
-    console.log('mode', mode);
     this.modalCtrl
       .create({
         component: CreateBookingComponent,
-        componentProps: { place: this.place }
+        componentProps: { place: this.place, selectedMode: mode }
       })
       .then(modalEl => {
         modalEl.present();
@@ -85,5 +89,11 @@ export class PlaceDetailPage implements OnInit {
           console.log('bookwd!');
         }
       });
+  }
+
+  ngOnDestroy(): void {
+    if (this.placeSubscription) {
+      this.placeSubscription.unsubscribe();
+    }
   }
 }
